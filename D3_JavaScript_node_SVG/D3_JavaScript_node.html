@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>The Network of  The Lord of the Rings</title>
+
+<!-- import d3 -->
+<script src="//d3js.org/d3.v4.min.js"></script>
+<script src="https://d3js.org/d3-geo-projection.v3.min.js"></script>
+<!--
+- FIT5147 Data Exploration and Visualisation
+- Programming Exercise 3 D3 Template
+- Created by: Kadek Satriadi
+- Last update by Kadek Satriadi (27/04/2021)
+-->
+
+  <!-- custom style -->
+  <style>
+    *{
+      font-family: 'Source Sans Pro', sans-serif;
+    }
+    h1{
+      font-weight: 900;
+    }
+     body{
+       background-color: lightgray;
+     }
+     .page{
+       width: 1200px;    
+       background-color: white;   
+       padding-left: 20px;
+       padding-right: 20px;
+       margin: auto;
+    }
+
+    .highlight-text {
+      fill: black;
+      font-size: 20px;
+      font-weight: bold;
+    }
+
+    .normal-text{
+
+    }
+
+  svg{
+    cursor: pointer;
+  }
+    .hover-link{
+       stroke: greenyellow;
+    }
+    .highlight-link{
+      stroke: #ff7f00;
+    }
+    .normal-link{
+      stroke: #bbb;
+      cursor: default;
+    }
+    #tooltip-container{
+      position: absolute;
+      background-color: white;
+      padding: 2px 10px 2px 10px;
+      display: none;
+      border: 1px solid #555;
+    }
+    #tooltip-text{
+        font-weight: bold;
+    }
+
+    .links line {
+    stroke: #999;
+    stroke-opacity: 0.6;
+  }
+
+  .nodes circle {
+    stroke: #fff;
+    stroke-width: 1.5px;
+  }
+  </style>
+</head>
+<body>
+
+    <!-- tooltip -->
+  <div id="tooltip-container">
+      <p id="tooltip-text">Tooltip text</p>
+  </div>
+
+ <div class="page">
+    <!-- pure grid group -->
+    <div class="pure-g">
+        <div class="pure-u-2-3">
+            <svg id="chart"></svg>
+        </div>
+       
+    <!-- end pure grid group -->
+    <div class="pure-g">
+      <div class="pure-u-1-1 small-font">
+        <p><strong>Data source: </strong>Kaminski, Jermain; Schober, Michael; Albaladejo, Raymond; Zastupailo, Oleksandr; Hidalgo, C<U+00E9>sar, 2018, Moviegalaxies - Social Networks in Movies, https://doi.org/10.7910/DVN/T4HBA3, Harvard Dataverse, V3
+        </p>
+      </div>
+    </div> 
+      <!-- end pure grid group -->
+
+  </div> <!-- end page -->
+   
+<script type="text/javascript">
+
+
+// the data is stored online, use this path to load the data
+var dataPath = "https://raw.githubusercontent.com/KadekSatriadi/TheLordOfTheRingsNetworkData/main/LOTR_3.json";
+
+var color = d3.scaleOrdinal(d3.schemeCategory20);
+
+window.onload = function(){
+
+
+var graph =   d3.json(dataPath, function(error, graph) {
+      if (error) throw error;
+
+      // select the svg element
+    var width = 750;
+    var height = 700;
+    var svg = d3.select("#chart")
+      .attr("width", width)
+      .attr("height", height);
+
+    var simulation = d3.forceSimulation()
+      .force("link", d3.forceLink().id(function(d) { return d.id; }).distance(function(d){return 55*d.weight;}).strength(1))
+      .force("charge", d3.forceManyBody().strength(-500))
+      .force("center", d3.forceCenter(width / 2, height / 2));
+
+          
+    var link = svg.selectAll("line")
+      .data(graph.links)        
+      .enter().append("line")
+      .attr("class", "links")        
+      .style("stroke",function(d) { return d.source === 13 && d.target === 27 ||  d.source === 10 && d.target === 29   ? "#ff7f00" : "#bbb"; })
+      .attr("stroke-width", function(d) { return d.weight; })
+      .on("mouseover", mouseoverLink)
+      .on("mouseout", mouseoutLink);          
+
+    var node = svg.selectAll("g")             
+      .data(graph.nodes)
+      .enter().append("g")
+      .attr("class", "nodes")
+      .on("mouseover", mouseover)
+      .on("mouseout", mouseout);       
+        
+    var circles = node.append("circle")
+        .attr("r", 8)
+        .attr("fill", function(d) { return d.id === 13 ||  d.id === 27 ||  d.id === 10 || d.id === 29   ? "black" : "#bbb"; })
+        .call(d3.drag()
+            .on("start", dragstarted)
+            .on("drag", dragged)
+            .on("end", dragended));
+
+    // Define the div for the tooltip
+    var div = d3.select("body")
+                .append("div")
+                .attr("class", "toopltip")
+                .style("position", "absolute")
+                .style("padding", "2px 10px 2px 10px")
+                .style("background-color", "white")
+                .style("border", "8px solid #555")
+                .style("display", "none")
+
+    var lables = node.append("text")
+        .text(function(d) {return d.name;})
+        .attr('x', 6)
+        .attr('y', 3)
+        .attr("font-size", function(d) { return d.id === 13 ||  d.id === 27 ||  d.id === 10 || d.id === 29   ? "20px" : "10px"; })
+        .attr("font-weigh", function(d) { return d.id === 13 ||  d.id === 27 ||  d.id === 10 || d.id === 29   ? "bold" : "normal"; });
+
+    simulation
+        .nodes(graph.nodes)
+        .on("tick", ticked);
+
+    simulation.force("link")
+        .links(graph.links);
+       
+        
+    function mouseover(d, i) {
+      d3.select(this).select("circle").transition()
+      .duration(750)
+      .attr("r", 16)
+      .attr("fill", "greenyellow");
+
+      d3.select(this).select("circle")
+      .append("title")
+      .text(function(d) { return d.name; });
+
+      
+    }
+
+    function mouseout() {
+      d3.select(this).select("circle").transition()
+          .duration(750)
+          .attr("r", 8)
+          .attr("fill", function(d) { return d.id === 13 ||  d.id === 27 ||  d.id === 10 || d.id === 29   ? "black" : "#bbb"; });
+    }
+
+    function mouseoverLink() {
+      d3.select(event.currentTarget)
+      .append("title")                
+      .text(function(d) {             
+        div.transition()
+            .duration(100)
+            .style("opacity", 1);
+            if (d.weight === 1) 
+            {
+            div.html(d.from + " interacted with " + d.to +" " + d.weight +" time.")
+                .style("font-weight","bold")         
+                .style("display", "block")
+                .style("left", d3.event.pageX  + 50 + "px")     
+                .style("top", d3.event.pageY + "px");
+            console.log(d.from + " interacted with " + d.to +" " + d.weight +" time.")
+
+            }else {
+            div.html(d.from + " interacted with " + d.to +" " + d.weight +" times.")
+                .style("font-weight","bold")         
+                .style("display", "block")
+                .style("left", d3.event.pageX  + 50 + "px")     
+                .style("top", d3.event.pageY + "px");
+            console.log(d.from + " interacted with " + d.to +" " + d.weight +" times.")
+            }            
+        return ""; 
+      });
+
+      d3.select(event.currentTarget)
+        .transition()
+        .duration(100)
+        .style("stroke",function(d) { return "greenyellow"; })
+        .attr("stroke-width", function(d) { return 5 * d.weight; }); 
+    }
+
+    function mouseoutLink() {
+      d3.select(event.currentTarget)
+        .transition()
+        .duration(100)
+        .style("stroke",function(d) { return d.from === "FRODO" && d.to === "SAM" || d.from === "GANDALF" && d.to === "PIPPIN"    ? "#ff7f00" : "#bbb"; })
+        .attr("stroke-width", function(d) { return d.weight; });
+
+      div.transition()
+          .duration(100)
+          .style("opacity", 0);
+    }
+
+    function ticked() {
+      link
+          .attr("x1", function(d) { return d.source.x; })
+          .attr("y1", function(d) { return d.source.y; })
+          .attr("x2", function(d) { return d.target.x; })
+          .attr("y2", function(d) { return d.target.y; });
+
+      node
+          .attr("transform", function(d) {
+            return "translate(" + d.x + "," + d.y + ")";
+          });
+    }
+
+    function dragstarted(d) {
+      if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+      d.fx = d.x;
+      d.fy = d.y;
+    }
+
+    function dragged(d) {
+      d.fx = d3.event.x;
+      d.fy = d3.event.y;
+    }
+
+    function dragended(d) {
+      if (!d3.event.active) simulation.alphaTarget(0);
+      d.fx = d3.event.x;
+      d.fy = d3.event.y;
+    }
+    });   
+};
+
+
+</script>
+</body>
+</html>
